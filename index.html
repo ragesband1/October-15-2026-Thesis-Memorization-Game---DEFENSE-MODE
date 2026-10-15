@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Thesis Memorization Game - DEFENSE MODE</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#080808;color:white;font-family:'Consolas',monospace;min-height:100vh;overflow-x:hidden}
+.header{background:linear-gradient(90deg,#111,#222);padding:15px;text-align:center;border-bottom:3px solid yellow;position:sticky;top:0;z-index:100}
+.header h1{color:yellow;text-shadow:0 0 15px yellow;font-size:20px;letter-spacing:2px}
+.timer-box{display:flex;justify-content:center;gap:15px;margin:10px 0}
+.timer{background:#111;border:2px solid cyan;padding:8px 15px;border-radius:8px;font-weight:900;color:cyan;box-shadow:0 0 10px cyan}
+.timer.red{border-color:red;color:red;box-shadow:0 0 15px red;animation:pulse 0.5s infinite}
+@keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.1)}100%{transform:scale(1)}}
+.score{color:lime;border-color:lime;box-shadow:0 0 10px lime}
+.phase{color:magenta;border-color:magenta}
+.stage{padding:20px;max-width:900px;margin:auto}
+.card{background:#151515;border-left:4px solid yellow;margin:10px 0;padding:12px;border-radius:5px;transition:0.3s}
+.card:hover{background:#222;transform:translateX(5px)}
+.q{color:#888;font-size:11px}
+.a{color:white;margin-top:5px;font-size:13px;line-height:1.4}
+.highlight{background:yellow;color:black;font-weight:900;padding:1px 4px;border-radius:3px;box-shadow:0 0 8px yellow}
+.btn{padding:12px 25px;background:yellow;color:black;font-weight:900;border:none;border-radius:8px;cursor:pointer;margin:10px 5px;box-shadow:0 0 15px yellow;transition:0.3s}
+.btn:hover{transform:scale(1.1);box-shadow:0 0 25px yellow}
+.btn:disabled{opacity:0.3;cursor:not-allowed}
+.input-area{width:100%;padding:15px;background:#111;border:2px solid yellow;color:white;font-size:14px;border-radius:8px;margin:10px 0;letter-spacing:1px}
+.input-area:focus{outline:none;box-shadow:0 0 15px yellow}
+.word-correct{color:lime}
+.word-wrong{color:red;text-decoration:line-through}
+.progress{width:100%;height:8px;background:#222;border-radius:10px;margin:10px 0;overflow:hidden}
+.progress-bar{height:100%;background:linear-gradient(90deg,yellow,lime);width:0%;transition:0.5s}
+.panel-q{background:#1a1a1a;border:2px solid magenta;padding:15px;border-radius:10px;margin:15px 0;box-shadow:0 0 10px magenta}
+.panel-q h3{color:magenta;font-size:14px}
+.feedback{margin:10px 0;padding:10px;border-radius:5px;font-size:12px}
+.feedback.good{background:rgba(0,255,0,0.1);border:1px solid lime;color:lime}
+.feedback.bad{background:rgba(255,0,0,0.1);border:1px solid red;color:red}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>⚡ THESIS MEMORIZATION GAME ⚡ DEFENSE MODE</h1>
+<div class="timer-box">
+<div class="timer" id="reviewTimer">REVIEW: 30:00</div>
+<div class="timer" id="gameTimer">BATTLE: 15:00</div>
+<div class="timer score" id="scoreBox">SCORE: 0</div>
+<div class="timer phase" id="phaseBox">PHASE: REVIEW</div>
+</div>
+<div class="progress"><div class="progress-bar" id="pbar"></div></div>
+</div>
+
+<!-- PHASE 1 -->
+<div id="phase1" class="stage">
+<h2 style="color:yellow;margin-bottom:10px;">PHASE 1: MEMORIZE - 30 MINUTES - KABISADUHIN YUNG YELLOW TEXTS!</h2>
+<p style="color:#aaa;font-size:11px;">Goal: Lahat ng naka-YELLOW HIGHLIGHT ay dapat kabisado. No period, space at letters lang sa battle.</p>
+<div id="reviewList"></div>
+<button class="btn" id="startBattleBtn" onclick="startBattle()">START BATTLE NOW (Skip 30min) →</button>
+</div>
+
+<!-- PHASE 2 -->
+<div id="phase2" class="stage hidden">
+<h2 style="color:magenta;">PHASE 2: PANEL BATTLE - 15 MINUTES - SCRAMBLED QUESTIONS!</h2>
+<p style="color:#aaa;font-size:11px;">Type exact yellow answer. Space lang. Enter per question. +10 per correct word, -5 per wrong word.</p>
+<div id="currentQ"></div>
+<input type="text" id="answerInput" class="input-area" placeholder="TYPE ANSWER HERE - SPACE AND LETTERS ONLY..." autocomplete="off">
+<div style="display:flex;gap:10px">
+<button class="btn" onclick="checkAnswer()">SUBMIT (ENTER)</button>
+<button class="btn" style="background:#333;color:white;box-shadow:none" onclick="skipQ()">SKIP</button>
+</div>
+<div id="feedback"></div>
+<div id="answeredList"></div>
+</div>
+
+<div id="final" class="stage hidden">
+<h1 id="finalText"></h1>
+<p id="finalScore" style="margin:15px 0;font-size:18px"></p>
+<button class="btn" onclick="location.reload()">RETRY DEFENSE</button>
+</div>
+
+<script>
+const DATA = [
+{q:"What is AI?",a:"Technology that simulates human intelligence"},
+{q:"What are the types of AI?",a:"Narrow AI General AI and Super AI"},
+{q:"What are examples of AI tools?",a:"ChatGPT Gemini Firefly and Canva AI"},
+{q:"What are the advantages and disadvantages of AI?",a:"Saves time but may cause dependence"},
+{q:"Why did you choose this topic?",a:"To understand students AI use"},
+{q:"How does AI affect students creativity?",a:"It supports creativity but may cause dependence"},
+{q:"How can students use AI responsibly?",a:"By checking outputs and maintaining originality"},
+{q:"What if there is no AI?",a:"Students can use traditional methods"},
+{q:"Can AI replace human creativity?",a:"No human creativity remains important"},
+{q:"What is your main recommendation?",a:"Use AI responsibly and maintain creativity"},
+{q:"What is the relevance of your research?",a:"To promote responsible AI use in design"},
+{q:"What is the importance of your research?",a:"To encourage creativity and responsible AI use"},
+{q:"What are the uses of AI?",a:"For learning creativity and productivity"},
+{q:"Can you live in this world without AI?",a:"Yes through traditional methods"},
+{q:"If you use AI with critical thinking can you improve originality?",a:"Yes by using personal creativity"},
+{q:"Without AI can students study very well?",a:"Yes through traditional learning"},
+{q:"Without AI will students studies be affected?",a:"Yes some tasks take longer"},
+{q:"Who is smarter AI or students?",a:"Students through critical thinking"},
+{q:"What is the Introduction?",a:"AI helps students in illustration and design"},
+{q:"What is the Background?",a:"AI helps students create ideas and designs"},
+{q:"What is the Rationale?",a:"The study promotes responsible AI use"},
+{q:"What are the Objectives?",a:"To identify factors relationships benefits and disadvantages of AI use"},
+{q:"What is the Problem?",a:"The study examines AIs effects on students creativity and design process"},
+{q:"What are the Significance?",a:"Students understand benefits Teachers understand use Schools develop guidelines Future Researchers support research Researchers understand effects"},
+{q:"What are Key Findings?",a:"ChatGPT use is influenced by usefulness ease trust access and AI literacy"},
+{q:"What is Research Design?",a:"The study uses surveys correlation and regression"},
+{q:"What is Theoretical Framework?",a:"TAM focuses on perceived usefulness and perceived ease of use"},
+{q:"What is Conceptual Framework?",a:"It shows how nine factors influence intention to use AI"},
+{q:"What is Hypothesis?",a:"The study examines relationship between nine factors and AI use intention"},
+{q:"What are Nine Variables?",a:"Perceived Usefulness Creativity Idea Generation Learning Skills Concerns Risks Design Assistance Quality Social Influence Accessibility Traditional Design Preference Ethical Use"},
+{q:"What is Continued Use Intention?",a:"It measures intention to continue using AI"},
+{q:"RRL ChatGPT Adoption?",a:"Usefulness ease trust social influence affect ChatGPT adoption"},
+{q:"RRL Students Experiences?",a:"Students actively interact and find ChatGPT useful for learning"},
+{q:"RRL Art Design?",a:"Social influence ease risks anxiety affect adoption and ChatGPT helps generate design ideas"},
+{q:"RRL Asian Philippine Context?",a:"ChatGPT use is relatively high in Philippines and generative AI is widely used by Filipino students"}
+];
+
+let score=0, reviewSec=30*60, battleSec=15*60, reviewInterval, battleInterval, currentIndex=0, shuffled=[], answered=0;
+
+const reviewList=document.getElementById('reviewList');
+DATA.forEach((d,i)=>{
+  reviewList.innerHTML+=`<div class="card"><div class="q">${i+1}. ${d.q}</div><div class="a"><span class="highlight">${d.a}</span></div></div>`;
+});
+
+function updateTimers(){
+ document.getElementById('reviewTimer').innerText=`REVIEW: ${String(Math.floor(reviewSec/60)).padStart(2,'0')}:${String(reviewSec%60).padStart(2,'0')}`;
+ document.getElementById('gameTimer').innerText=`BATTLE: ${String(Math.floor(battleSec/60)).padStart(2,'0')}:${String(battleSec%60).padStart(2,'0')}`;
+ document.getElementById('scoreBox').innerText=`SCORE: ${score}`;
+ document.getElementById('pbar').style.width=`${(answered/DATA.length)*100}%`;
+ if(reviewSec<60) document.getElementById('reviewTimer').classList.add('red');
+}
+reviewInterval=setInterval(()=>{reviewSec--;updateTimers();if(reviewSec<=0){clearInterval(reviewInterval);startBattle();}},1000);
+updateTimers();
+
+function shuffleArray(a){let b=[...a];for(let i=b.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]]}return b;}
+
+function startBattle(){
+ clearInterval(reviewInterval);
+ document.getElementById('phase1').classList.add('hidden');
+ document.getElementById('phase2').classList.remove('hidden');
+ document.getElementById('phaseBox').innerText='PHASE: BATTLE';
+ shuffled=shuffleArray(DATA.map((d,i)=>({...d,orig:i})));
+ currentIndex=0;
+ showQuestion();
+ battleInterval=setInterval(()=>{battleSec--;updateTimers();if(battleSec<=0){endGame();}},1000);
+}
+
+function showQuestion(){
+ if(currentIndex>=shuffled.length){endGame();return;}
+ let d=shuffled[currentIndex];
+ document.getElementById('currentQ').innerHTML=`<div class="panel-q"><h3>PANEL QUESTION ${currentIndex+1}/${shuffled.length} (SCRAMBLED)</h3><p style="margin-top:8px;font-size:15px;color:white;">${d.q}</p><p style="font-size:10px;color:#666;margin-top:5px;">Original #${d.orig+1} - Type the YELLOW answer</p></div>`;
+ document.getElementById('answerInput').value='';
+ document.getElementById('answerInput').focus();
+}
+
+function normalize(s){return s.toLowerCase().replace(/[^a-z0-9 ]/g,'').replace(/\s+/g,' ').trim();}
+
+function checkAnswer(){
+ let input=document.getElementById('answerInput').value;
+ if(!input.trim()) return;
+ let correct=shuffled[currentIndex].a;
+ let nInput=normalize(input).split(' ');
+ let nCorrect=normalize(correct).split(' ');
+ let correctWords=0,wrongWords=0,html='';
+ nCorrect.forEach((w,i)=>{
+   if(nInput[i]===w){correctWords++;html+=`<span class="word-correct">${w} </span>`;score+=10;}
+   else {wrongWords++;html+=`<span class="word-wrong">${nInput[i]||'____'} </span>`;score-=5;}
+ });
+ if(nInput.length>nCorrect.length){wrongWords+=nInput.length-nCorrect.length;score-=(nInput.length-nCorrect.length)*5;}
+ answered++;
+ document.getElementById('feedback').innerHTML=`<div class="feedback ${correctWords>nCorrect.length/2?'good':'bad'}">Expected: <b>${correct}</b><br>Your words: ${html}<br>+${correctWords*10} / -${wrongWords*5}</div>`;
+ document.getElementById('answeredList').innerHTML+=`<div class="card"><div class="q">${shuffled[currentIndex].q}</div><div class="a">YOU: ${input} | CORRECT: <span class="highlight">${correct}</span></div></div>`;
+ currentIndex++;
+ updateTimers();
+ setTimeout(showQuestion,1200);
+}
+
+function skipQ(){
+ answered++;score-=10;currentIndex++;showQuestion();updateTimers();
+}
+
+function endGame(){
+ clearInterval(battleInterval);
+ document.getElementById('phase2').classList.add('hidden');
+ document.getElementById('final').classList.remove('hidden');
+ let status = score>800 ? "PASADO KA NA SA DEFENSE! LEGEND!" : score>400 ? "KAYA PA! REVIEW ULIT!" : "NEED PA PAGSIKAPAN!";
+ document.getElementById('finalText').innerText=status;
+ document.getElementById('finalText').style.color= score>800 ? 'lime':'yellow';
+ document.getElementById('finalScore').innerHTML=`Final Score: <b style="color:yellow">${score}</b> / ${DATA.length*10*5} max<br>Answered: ${answered}/${DATA.length}<br><br>Tip: Lahat ng YELLOW dapat kabisado, space lang, no period.`;
+ document.getElementById('phaseBox').innerText='PHASE: DONE';
+}
+
+document.getElementById('answerInput').addEventListener('keydown',e=>{if(e.key==='Enter') checkAnswer();});
+</script>
+</body>
+</html>
